@@ -96,8 +96,27 @@ jobs:
         run: |
           set -euo pipefail
           ls -lh packages/
-          test -n "$(ls -1 packages/*.deb 2>/dev/null)" || { echo "::error::没有产出 deb"; exit 1; }
-          dpkg-deb -I packages/*.deb | head -20
+          deb=$(ls -1 packages/*.deb 2>/dev/null | head -1 || true)
+          if [ -z "$deb" ]; then
+            echo "::error::没有产出 deb"
+            exit 1
+          fi
+          echo "产物：$deb ($(wc -c < "$deb") 字节)"
+          # macOS runner 没有 dpkg-deb，用 ar 校验包结构。
+          if command -v dpkg-deb >/dev/null 2>&1; then
+            dpkg-deb -I "$deb"
+          else
+            echo "--- ar 成员列表 ---"
+            ar t "$deb"
+            echo "--- control ---"
+            member=$(ar t "$deb" | grep '^control\.tar' | head -1)
+            case "$member" in
+              *.gz)  ar p "$deb" "$member" | tar -xzO ./control 2>/dev/null | head -20 ;;
+              *.xz)  ar p "$deb" "$member" | tar -xJO ./control 2>/dev/null | head -20 ;;
+              *.zst) echo "(zstd 压缩，跳过控制文件预览)" ;;
+              *)     echo "(未知控制包格式：$member)" ;;
+            esac
+          fi
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
