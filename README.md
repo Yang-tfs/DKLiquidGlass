@@ -1,5 +1,7 @@
 # DKLiquidGlass
 
+[![build](https://github.com/Yang-tfs/DKLiquidGlass/actions/workflows/build.yml/badge.svg)](https://github.com/Yang-tfs/DKLiquidGlass/actions/workflows/build.yml)
+
 iOS 16+ 的悬浮液态玻璃底栏。**一套代码，两条渲染路径**：
 
 - **iOS 26 及以上** — 走系统 `UIGlassEffect`，拿到原生材质、边缘折射与触摸 flex
@@ -7,7 +9,7 @@ iOS 16+ 的悬浮液态玻璃底栏。**一套代码，两条渲染路径**：
 
 调用方只认 `DKGlassSurface` 一个类，不需要判断系统版本。
 
-> **当前状态**：代码完整，但**尚未经过真机编译与视觉校准**。开发环境是 Windows，没有 macOS + Theos。首次构建与调参记录见 [docs/design.md](docs/design.md)。
+> **当前状态**：编译链路已跑通——GitHub Actions 在 `macos-latest` 上通过 `arm64` + `arm64e` 双架构构建，产出 `rootless` 与 `rootful` 两个 deb。**但还没有上真机**，材质的视觉效果与触感未经校准。调参记录见 [docs/design.md](docs/design.md)。
 
 ---
 
@@ -156,7 +158,7 @@ bar.frame = CGRectMake(0, window.bounds.size.height - size.height - 34, size.wid
 
 ## 已知限制
 
-- **未经真机验证。** 代码写完了，没编译过，更没有上机。第一次构建大概率需要修几个编译错误。
+- **没有上真机。** 代码能编过、能打包、能签名，但材质观感、几何对齐、触摸反馈都还没有在设备上验证过。第一次装上大概率要调 `DKGlassTuning.m` 里的数字。
 - **边缘折射不可实现。** 见上文，这是物理限制不是工程量问题。
 - **动效会比 iOS 26 露馅。** 静态观感接近，滚动和切页时缺少材质流动。
 
