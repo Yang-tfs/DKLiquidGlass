@@ -215,7 +215,7 @@ static void DKHostStartRetryLoop(void) {
             return;
         }
         if (gDKHostAttempts >= kDKHostMaxAttempts) {
-            DKDiagLog(@"放弃挂载：%lu 次都没找到可用 window", (unsigned long)gDKHostMaxAttempts);
+            DKDiagLog(@"放弃挂载：%lu 次都没找到可用 window", (unsigned long)kDKHostMaxAttempts);
             DKHostStopTimer();
         }
     });
