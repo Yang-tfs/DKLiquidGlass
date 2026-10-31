@@ -1,0 +1,11 @@
+* text=auto
+
+# Theos / 构建脚本必须保持 LF，CRLF 会让 make 报错
+Makefile text eol=lf
+*.sh text eol=lf
+control text eol=lf
+
+*.m text
+*.h text
+*.xm text
+*.md text
