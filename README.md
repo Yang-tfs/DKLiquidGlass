@@ -80,6 +80,12 @@ make package THEOS_PACKAGE_SCHEME=rootless
 | 传统 rootful | `make package` |
 | roothide Bootstrap | `make package THEOS_PACKAGE_SCHEME=roothide` |
 
+### 没有 macOS？用 GitHub Actions
+
+仓库自带 [`.github/workflows/build.yml`](.github/workflows/build.yml)。推代码或手动触发后，会在 `macos-latest` 上自动编译 `rootless` 与 `rootful` 两个版本，产物在 Actions 页面的 Artifacts 里下载。
+
+这意味着**不装 Theos 也能验证代码是否能编过**——改完 push，等两分钟看结果。
+
 ---
 
 ## 调参

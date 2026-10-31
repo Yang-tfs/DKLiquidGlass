@@ -1,0 +1,86 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Sources/**'
+      - 'Makefile'
+      - 'control'
+      - 'DKLiquidGlass.plist'
+      - '.github/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build (${{ matrix.scheme }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scheme: [rootless, rootful]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Theos
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/theos
+          key: theos-${{ runner.os }}-${{ hashFiles('.github/workflows/build.yml') }}
+
+      - name: Install Theos
+        run: |
+          set -euo pipefail
+          THEOS="${RUNNER_TEMP}/theos"
+          if [ ! -d "${THEOS}/.git" ]; then
+            git clone --recursive --depth 1 https://github.com/theos/theos.git "${THEOS}"
+          fi
+          echo "THEOS=${THEOS}" >> "${GITHUB_ENV}"
+          echo "${THEOS}/bin" >> "${GITHUB_PATH}"
+          # Theos 用 $THEOS/makefiles，老版本依赖环境变量指向 makefiles 目录
+          echo "THEOS_MAKE_PATH=${THEOS}/makefiles" >> "${GITHUB_ENV}"
+
+      - name: Install iOS SDK
+        run: |
+          set -euo pipefail
+          mkdir -p "${THEOS}/sdks"
+          if ! ls "${THEOS}"/sdks/*.sdk >/dev/null 2>&1; then
+            git clone --depth 1 https://github.com/theos/sdks.git "${RUNNER_TEMP}/sdks"
+            cp -R "${RUNNER_TEMP}"/sdks/*.sdk "${THEOS}/sdks/" || true
+          fi
+          echo "可用 SDK："
+          ls -1 "${THEOS}/sdks"
+
+      - name: Show toolchain versions
+        run: |
+          xcodebuild -version
+          echo "THEOS=${THEOS}"
+          ls "${THEOS}/bin" | head -20
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.scheme }}" = "rootful" ]; then
+            make package FINALPACKAGE=1
+          else
+            make package THEOS_PACKAGE_SCHEME="${{ matrix.scheme }}" FINALPACKAGE=1
+          fi
+
+      - name: Verify artifact
+        run: |
+          set -euo pipefail
+          ls -lh packages/
+          test -n "$(ls -1 packages/*.deb 2>/dev/null)" || { echo "::error::没有产出 deb"; exit 1; }
+          dpkg-deb -I packages/*.deb | head -20
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: DKLiquidGlass-${{ matrix.scheme }}
+          path: packages/*.deb
+          if-no-files-found: error
