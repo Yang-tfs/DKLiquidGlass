@@ -29,7 +29,6 @@ static const CGFloat kDKTabIconSide    = 24.0;
     UIStackView *_stack;
     UIButton *_plusButton;
     NSMutableArray<UIButton *> *_buttons;
-    CGFloat _cachedCapsuleWidth;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -276,7 +275,6 @@ static const CGFloat kDKTabIconSide    = 24.0;
         }
     }
 
-    _cachedCapsuleWidth = capsuleWidth;
 }
 
 - (CGSize)intrinsicContentSize {
