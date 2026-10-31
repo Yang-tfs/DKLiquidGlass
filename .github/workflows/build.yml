@@ -62,6 +62,27 @@ jobs:
           echo "THEOS=${THEOS}"
           ls "${THEOS}/bin" | head -20
 
+      - name: Install ldid
+        run: |
+          set -euo pipefail
+          # Theos 用 ldid 给 dylib 签名，runner 镜像里没有，得自己装。
+          if command -v ldid >/dev/null 2>&1; then
+            echo "已存在：$(command -v ldid)"
+            exit 0
+          fi
+          brew install ldid || true
+          if command -v ldid >/dev/null 2>&1; then
+            echo "brew 安装成功：$(command -v ldid)"
+            exit 0
+          fi
+          echo "brew 未提供，改用 Procursus 预编译二进制"
+          mkdir -p "${RUNNER_TEMP}/bin"
+          curl -fsSL -o "${RUNNER_TEMP}/bin/ldid" \
+            https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_macosx_arm64
+          chmod +x "${RUNNER_TEMP}/bin/ldid"
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+          "${RUNNER_TEMP}/bin/ldid" -v || true
+
       - name: Build
         run: |
           set -euo pipefail
