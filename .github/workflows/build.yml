@@ -136,3 +136,33 @@ jobs:
             .theos/obj/DKLiquidGlassInject.dylib
             .theos/obj/*/DKLiquidGlassInject.dylib
           if-no-files-found: error
+
+      # 演示 App：TrollStore 直接装 IPA，不注入、不越狱，
+      # 是唯一一条「一定能看到东西」的验证路径。
+      - name: Package demo IPA
+        if: matrix.scheme == 'rootless'
+        run: |
+          set -euo pipefail
+          app=$(find .theos -maxdepth 4 -type d -name 'DKLiquidGlassDemo.app' | head -1)
+          if [ -z "$app" ]; then
+            echo "::error::没找到 DKLiquidGlassDemo.app"
+            find .theos -maxdepth 4 -type d -name '*.app' || true
+            exit 1
+          fi
+          echo "app bundle: $app"
+          rm -rf "${RUNNER_TEMP}/ipa"
+          mkdir -p "${RUNNER_TEMP}/ipa/Payload"
+          cp -R "$app" "${RUNNER_TEMP}/ipa/Payload/"
+          ldid -S "${RUNNER_TEMP}/ipa/Payload/DKLiquidGlassDemo.app/DKLiquidGlassDemo"
+          mkdir -p packages
+          ( cd "${RUNNER_TEMP}/ipa" && zip -qry "${GITHUB_WORKSPACE}/packages/DKLiquidGlassDemo.ipa" Payload )
+          ls -lh packages/DKLiquidGlassDemo.ipa
+          unzip -l packages/DKLiquidGlassDemo.ipa | head -12
+
+      - name: Upload demo IPA
+        if: matrix.scheme == 'rootless'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DKLiquidGlassDemo-ipa
+          path: packages/DKLiquidGlassDemo.ipa
+          if-no-files-found: error

@@ -1,6 +1,6 @@
 Package: com.yangtfs.dkliquidglass
 Name: DKLiquidGlass
-Version: 0.1.0
+Version: 0.1.1
 Architecture: iphoneos-arm
 Description: iOS 16+ 液态玻璃底栏。iOS 26 走系统 UIGlassEffect，iOS 16 用叠加层自绘降级。
 Maintainer: Yang-tfs
