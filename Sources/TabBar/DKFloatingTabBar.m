@@ -3,13 +3,14 @@
 //
 
 #import "DKFloatingTabBar.h"
+#import "DKGlassTuning.h"
 
 #import <math.h>
-#import "DKGlassTuning.h"
 
 static const CGFloat kDKTabItemWidth   = 44.0;
 static const CGFloat kDKTabCapsulePad  = 14.0;
-static const CGFloat kDKTabIconSide    = 24.0;
+static const CGFloat kDKTabIconPoint   = 19.0;
+static const CGFloat kDKTabMinAlpha    = 0.62;
 
 @implementation DKFloatingTabItem
 
@@ -64,15 +65,68 @@ static const CGFloat kDKTabIconSide    = 24.0;
     [self addSubview:_plusSurface];
 
     _plusButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    _plusButton.tintColor = UIColor.whiteColor;
-    UIImage *plus = [UIImage systemImageNamed:@"plus"];
-    [_plusButton setImage:plus forState:UIControlStateNormal];
-    _plusButton.preferredSymbolConfiguration =
-        [UIImageSymbolConfiguration configurationWithPointSize:20 weight:UIImageSymbolWeightMedium];
     [_plusButton addTarget:self action:@selector(dk_handlePlus) forControlEvents:UIControlEventTouchUpInside];
     [_plusSurface addSubview:_plusButton];
+    [self dk_applyPlusAppearance];
 
     return self;
+}
+
+#pragma mark - 外观
+
+/// 图标统一套一份 symbol 配置。
+/// 注意：`preferredSymbolConfiguration` 是 UIImageView 的属性，UIButton 上没有；
+/// 要按状态设置得用 setPreferredSymbolConfiguration:forImageInState:，
+/// 或者像这里一样直接把配置烤进 UIImage。
+- (UIImage *)dk_configuredImage:(UIImage *)image point:(CGFloat)point weight:(UIImageSymbolWeight)weight {
+    if (!image) return nil;
+    UIImageSymbolConfiguration *config =
+        [UIImageSymbolConfiguration configurationWithPointSize:point weight:weight];
+    UIImage *configured = [image imageWithConfiguration:config] ?: image;
+    return [configured imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+}
+
+- (UIColor *)dk_baseColor {
+    return (_polarity == DKGlassPolarityDark) ? UIColor.whiteColor : UIColor.blackColor;
+}
+
+/// 用 UIButtonConfiguration 描述一个 tab 的样子。
+/// 不用 titleEdgeInsets / imageEdgeInsets：它们自 iOS 15 废弃，配了 configuration 后会被忽略。
+- (UIButtonConfiguration *)dk_configurationForItem:(DKFloatingTabItem *)item selected:(BOOL)selected {
+    UIButtonConfiguration *config = [UIButtonConfiguration plainConfiguration];
+
+    UIImage *image = selected ? (item.selectedImage ?: item.image) : item.image;
+    if (image) {
+        config.image = [self dk_configuredImage:image
+                                          point:kDKTabIconPoint
+                                         weight:selected ? UIImageSymbolWeightSemibold
+                                                         : UIImageSymbolWeightRegular];
+    }
+
+    if (item.title.length) {
+        config.title = item.title;
+        config.imagePlacement = NSDirectionalRectAlignmentTop;
+        config.imagePadding = 2.0;
+        UIFontWeight weight = selected ? UIFontWeightSemibold : UIFontWeightMedium;
+        config.titleTextAttributesTransformer =
+            ^NSDictionary<NSAttributedStringKey, id> *(NSDictionary<NSAttributedStringKey, id> *incoming) {
+                NSMutableDictionary *out = [incoming mutableCopy];
+                out[NSFontAttributeName] = [UIFont systemFontOfSize:10 weight:weight];
+                return out;
+            };
+    }
+
+    UIColor *base = [self dk_baseColor];
+    config.baseForegroundColor = selected ? base : [base colorWithAlphaComponent:kDKTabMinAlpha];
+    config.contentInsets = NSDirectionalEdgeInsetsZero;
+    return config;
+}
+
+- (void)dk_applyPlusAppearance {
+    UIImage *plus = [UIImage systemImageNamed:@"plus"];
+    [_plusButton setImage:[self dk_configuredImage:plus point:20.0 weight:UIImageSymbolWeightMedium]
+                 forState:UIControlStateNormal];
+    _plusButton.tintColor = [self dk_baseColor];
 }
 
 #pragma mark - 属性
@@ -88,19 +142,6 @@ static const CGFloat kDKTabIconSide    = 24.0;
     [items enumerateObjectsUsingBlock:^(DKFloatingTabItem *item, NSUInteger index, BOOL *stop) {
         UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
         button.tag = (NSInteger)index;
-        UIImage *image = item.image ?: item.selectedImage;
-        if (image) {
-            [button setImage:[image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
-                    forState:UIControlStateNormal];
-        }
-        button.preferredSymbolConfiguration =
-            [UIImageSymbolConfiguration configurationWithPointSize:19 weight:UIImageSymbolWeightRegular];
-        if (item.title.length) {
-            [button setTitle:item.title forState:UIControlStateNormal];
-            button.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
-            button.titleEdgeInsets = UIEdgeInsetsMake(kDKTabIconSide, -kDKTabIconSide, 0, 0);
-            button.imageEdgeInsets = UIEdgeInsetsMake(-12, 0, 0, 0);
-        }
         [button addTarget:self action:@selector(dk_handleTab:) forControlEvents:UIControlEventTouchUpInside];
         [self->_stack addArrangedSubview:button];
         [self->_buttons addObject:button];
@@ -130,7 +171,6 @@ static const CGFloat kDKTabIconSide    = 24.0;
 }
 
 - (void)setPolarity:(DKGlassPolarity)polarity {
-    _polarity = polarity;
     [self applyPolarity:polarity];
 }
 
@@ -138,6 +178,7 @@ static const CGFloat kDKTabIconSide    = 24.0;
     _polarity = polarity;
     [_capsule setPolarity:polarity animated:YES];
     [_plusSurface setPolarity:polarity animated:YES];
+    [self dk_applyPlusAppearance];
     [self dk_applySelectionAnimated:NO];
 }
 
@@ -152,33 +193,9 @@ static const CGFloat kDKTabIconSide    = 24.0;
         [self->_buttons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
             BOOL selected = ((NSInteger)index == self->_selectedIndex);
             DKFloatingTabItem *item = index < self->_items.count ? self->_items[index] : nil;
-
-            // 未选中用 62% 而不是 50%：50% 在 Clear 档上只有约 3.9:1 的对比度，不达 WCAG AA。
-            UIColor *base = (self->_polarity == DKGlassPolarityDark)
-                ? UIColor.whiteColor : UIColor.blackColor;
-            button.tintColor = selected ? base : [base colorWithAlphaComponent:0.62];
-
-            if (item.title.length) {
-                [button setTitleColor:selected ? base : [base colorWithAlphaComponent:0.62]
-                             forState:UIControlStateNormal];
-                button.titleLabel.font = [UIFont systemFontOfSize:10
-                                                         weight:selected ? UIFontWeightSemibold
-                                                                         : UIFontWeightMedium];
-            }
-
-            UIImage *selectedImage = item.selectedImage;
-            if (selectedImage && item.image) {
-                UIImage *target = selected ? selectedImage : item.image;
-                [button setImage:[target imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
-                        forState:UIControlStateNormal];
-            }
-
-            button.transform = selected ? CGAffineTransformMakeTranslation(0, -1)
-                                        : CGAffineTransformIdentity;
+            button.configuration = [self dk_configurationForItem:item selected:selected];
+            button.transform = selected ? CGAffineTransformMakeTranslation(0, -1) : CGAffineTransformIdentity;
         }];
-
-        UIColor *plusColor = (self->_polarity == DKGlassPolarityDark) ? UIColor.whiteColor : UIColor.blackColor;
-        self->_plusButton.tintColor = plusColor;
     };
 
     if (!animated || UIAccessibilityIsReduceMotionEnabled()) {
@@ -256,10 +273,9 @@ static const CGFloat kDKTabIconSide    = 24.0;
     }
     _capsule.cornerRadius = DKGlassCapsuleRadius(height);
 
-    // 胶囊内边距：图标区不贴到圆弧上
-    CGFloat stackInset = kDKTabCapsulePad;
-    CGRect stackRect = CGRectInset(capsuleRect, stackInset, 0);
-    stackRect.origin = CGPointMake(stackInset, 0);
+    // _stack 是 _capsule 的子视图，frame 用胶囊局部坐标。
+    CGRect stackRect = CGRectMake(kDKTabCapsulePad, 0,
+                                  MAX(0, capsuleWidth - kDKTabCapsulePad * 2), height);
     if (!CGRectEqualToRect(_stack.frame, stackRect)) {
         _stack.frame = stackRect;
     }
@@ -276,13 +292,13 @@ static const CGFloat kDKTabIconSide    = 24.0;
             _plusButton.frame = buttonRect;
         }
     }
-
 }
 
 - (CGSize)intrinsicContentSize {
-    return [self preferredSizeForWidth:DKGlassBarInset * 2 + _items.count * kDKTabItemWidth
-                                      + kDKTabCapsulePad * 2
-                                      + (_showsPlusKey ? DKGlassPlusGap + DKGlassBarHeight : 0)];
+    CGFloat width = DKGlassBarInset * 2
+                  + _items.count * kDKTabItemWidth + kDKTabCapsulePad * 2
+                  + (_showsPlusKey ? DKGlassPlusGap + DKGlassBarHeight : 0);
+    return [self preferredSizeForWidth:width];
 }
 
 @end

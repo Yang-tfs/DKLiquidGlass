@@ -14,6 +14,7 @@ TWEAK_NAME = DKLiquidGlass
 # 递归收集，加新文件不用改这里。
 DKLiquidGlass_FILES = $(shell find Sources -type f \( -name '*.m' -o -name '*.xm' \) | sort)
 DKLiquidGlass_CFLAGS = -fobjc-arc -Wall \
+	-Wno-error=deprecated-declarations \
 	-ISources -ISources/DKGlass -ISources/TabBar
 DKLiquidGlass_FRAMEWORKS = UIKit Foundation QuartzCore CoreGraphics
 
