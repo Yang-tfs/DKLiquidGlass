@@ -124,3 +124,15 @@ jobs:
           name: DKLiquidGlass-${{ matrix.scheme }}
           path: packages/*.deb
           if-no-files-found: error
+
+      # 巨魔（TrollStore）用户不走 deb：那里没有 substrate。
+      # 他们需要的是不含 substrate 依赖的纯库 dylib，交给 TrollFools 注入目标 App。
+      - name: Upload TrollFools dylib
+        if: matrix.scheme == 'rootless'
+        uses: actions/upload-artifact@v4
+        with:
+          name: DKLiquidGlass-TrollFools-dylib
+          path: |
+            .theos/obj/DKLiquidGlassInject.dylib
+            .theos/obj/*/DKLiquidGlassInject.dylib
+          if-no-files-found: error

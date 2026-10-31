@@ -1,1 +1,1 @@
-{ Filter = { Bundles = ( "com.apple.springboard" ); }; }
+{ Filter = { Bundles = ( "com.apple.springboard", "com.ss.iphone.ugc.Aweme", "com.ss.iphone.ugc.aweme.lite" ); }; }
