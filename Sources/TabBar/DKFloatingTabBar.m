@@ -90,36 +90,21 @@ static const CGFloat kDKTabMinAlpha    = 0.62;
     return (_polarity == DKGlassPolarityDark) ? UIColor.whiteColor : UIColor.blackColor;
 }
 
-/// 用 UIButtonConfiguration 描述一个 tab 的样子。
-/// 不用 titleEdgeInsets / imageEdgeInsets：它们自 iOS 15 废弃，配了 configuration 后会被忽略。
-- (UIButtonConfiguration *)dk_configurationForItem:(DKFloatingTabItem *)item selected:(BOOL)selected {
-    UIButtonConfiguration *config = [UIButtonConfiguration plainConfiguration];
-
+/// 只画图标，不用 UIButtonConfiguration。
+/// 原因：`+plainConfiguration` 在部分 SDK 上取不到，`imagePlacement` 的类型是
+/// NSDirectionalRectEdge 而不是 RectAlignment，两处都踩过。悬浮底栏本来就是纯图标形态，
+/// 标题只用来做无障碍标签，不进视觉。
+- (UIImage *)dk_imageForItem:(DKFloatingTabItem *)item selected:(BOOL)selected {
     UIImage *image = selected ? (item.selectedImage ?: item.image) : item.image;
-    if (image) {
-        config.image = [self dk_configuredImage:image
-                                          point:kDKTabIconPoint
-                                         weight:selected ? UIImageSymbolWeightSemibold
-                                                         : UIImageSymbolWeightRegular];
-    }
+    return [self dk_configuredImage:image
+                              point:kDKTabIconPoint
+                             weight:selected ? UIImageSymbolWeightSemibold
+                                             : UIImageSymbolWeightRegular];
+}
 
-    if (item.title.length) {
-        config.title = item.title;
-        config.imagePlacement = NSDirectionalRectAlignmentTop;
-        config.imagePadding = 2.0;
-        UIFontWeight weight = selected ? UIFontWeightSemibold : UIFontWeightMedium;
-        config.titleTextAttributesTransformer =
-            ^NSDictionary<NSAttributedStringKey, id> *(NSDictionary<NSAttributedStringKey, id> *incoming) {
-                NSMutableDictionary *out = [incoming mutableCopy];
-                out[NSFontAttributeName] = [UIFont systemFontOfSize:10 weight:weight];
-                return out;
-            };
-    }
-
+- (UIColor *)dk_colorForSelected:(BOOL)selected {
     UIColor *base = [self dk_baseColor];
-    config.baseForegroundColor = selected ? base : [base colorWithAlphaComponent:kDKTabMinAlpha];
-    config.contentInsets = NSDirectionalEdgeInsetsZero;
-    return config;
+    return selected ? base : [base colorWithAlphaComponent:kDKTabMinAlpha];
 }
 
 - (void)dk_applyPlusAppearance {
@@ -193,8 +178,15 @@ static const CGFloat kDKTabMinAlpha    = 0.62;
         [self->_buttons enumerateObjectsUsingBlock:^(UIButton *button, NSUInteger index, BOOL *stop) {
             BOOL selected = ((NSInteger)index == self->_selectedIndex);
             DKFloatingTabItem *item = index < self->_items.count ? self->_items[index] : nil;
-            button.configuration = [self dk_configurationForItem:item selected:selected];
-            button.transform = selected ? CGAffineTransformMakeTranslation(0, -1) : CGAffineTransformIdentity;
+
+            [button setImage:[self dk_imageForItem:item selected:selected]
+                    forState:UIControlStateNormal];
+            button.tintColor = [self dk_colorForSelected:selected];
+            // 底栏是纯图标形态，标题只作为无障碍标签，不参与视觉。
+            button.accessibilityLabel = item.title;
+
+            button.transform = selected ? CGAffineTransformMakeTranslation(0, -1)
+                                        : CGAffineTransformIdentity;
         }];
     };
 
