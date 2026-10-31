@@ -5,6 +5,10 @@ INSTALL_TARGET_PROCESSES = SpringBoard
 
 include $(THEOS)/makefiles/common.mk
 
+# Theos 默认把警告当错误。本项目没有本地编译回路（靠 CI 验证），
+# 不能让一个弃用告警挡住整包构建，所以关掉；真正的错误仍然会让构建失败。
+export ERROR_ON_WARNINGS = 0
+
 TWEAK_NAME = DKLiquidGlass
 
 # 递归收集，加新文件不用改这里。

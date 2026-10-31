@@ -3,6 +3,8 @@
 //
 
 #import "DKGlassInk.h"
+
+#import <math.h>
 #import "DKGlassTuning.h"
 
 BOOL DKGlassColorIsInk(UIColor *color) {

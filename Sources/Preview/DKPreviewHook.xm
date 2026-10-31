@@ -17,6 +17,12 @@
 static DKFloatingTabBar *gDKPreviewBar;
 static const CGFloat kDKPreviewBottomInset = 34.0;
 
+// SpringBoard 没有公开头文件，自己声明够用的部分。
+// 不声明的话 %hook 拿不到类信息，方法签名也无从校验。
+@interface SpringBoard : UIApplication
+- (void)applicationDidFinishLaunching:(id)application;
+@end
+
 @interface DKPreviewDelegate : NSObject <DKFloatingTabBarDelegate>
 @end
 

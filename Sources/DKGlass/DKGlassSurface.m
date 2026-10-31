@@ -3,6 +3,8 @@
 //
 
 #import "DKGlassSurface.h"
+
+#import <math.h>
 #import "DKGlassTuning.h"
 
 #import <QuartzCore/QuartzCore.h>
@@ -30,31 +32,34 @@ static BOOL DKGlassNativeAvailable(void) {
 /// 建原生玻璃 effect。失败返回 nil，调用方自动走降级。
 static UIVisualEffect *DKMakeNativeGlass(DKGlassMaterial material, UIColor *_Nullable tint, BOOL interactive) {
     if (!DKGlassNativeAvailable()) return nil;
-    Class cls = NSClassFromString(@"UIGlassEffect");
 
 #if DK_HAS_GLASS_SDK
-    UIGlassEffectStyle style = (material == DKGlassMaterialClear)
-        ? UIGlassEffectStyleClear : UIGlassEffectStyleRegular;
-    UIGlassEffect *effect = [UIGlassEffect effectWithStyle:style];
-    if (!effect) return nil;
-    effect.interactive = interactive;
-    effect.tintColor = tint;
-    return effect;
-#else
-    // 老 SDK 编译时没有 UIGlassEffect 的声明，只能反射。
+    // 有 iOS 26 SDK 时优先走强类型 API。@available 守卫是必需的：
+    // 光靠 #if 只解决"能不能编译"，不满足可用性检查。
+    if (@available(iOS 26.0, *)) {
+        UIGlassEffectStyle style = (material == DKGlassMaterialClear)
+            ? UIGlassEffectStyleClear : UIGlassEffectStyleRegular;
+        UIGlassEffect *effect = [UIGlassEffect effectWithStyle:style];
+        if (!effect) return nil;
+        effect.interactive = interactive;
+        effect.tintColor = tint;
+        return effect;
+    }
+#endif
+
+    // 没有 26 SDK、或运行时低于 26：反射调用。
     // UIGlassEffectStyleRegular 与 Clear 的取值若在某些版本上对调，改这两个常量即可。
     static const NSInteger kStyleRegular = 0;
     static const NSInteger kStyleClear   = 1;
     NSInteger style = (material == DKGlassMaterialClear) ? kStyleClear : kStyleRegular;
 
-    SEL sel = NSSelectorFromString(@"effectWithStyle:");
-    id effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(cls, sel, style);
+    Class cls = NSClassFromString(@"UIGlassEffect");
+    id effect = ((id (*)(id, SEL, NSInteger))objc_msgSend)(cls, NSSelectorFromString(@"effectWithStyle:"), style);
     if (!effect) return nil;
 
     @try { [effect setValue:@(interactive) forKey:@"interactive"]; } @catch (__unused NSException *e) {}
     if (tint) { @try { [effect setValue:tint forKey:@"tintColor"]; } @catch (__unused NSException *e) {} }
     return (UIVisualEffect *)effect;
-#endif
 }
 
 #pragma mark - 降级路径的私有滤镜（可选，默认关闭）
@@ -277,6 +282,8 @@ static void DKInjectBackdropFilters(UIView *view) {
     CGFloat _explicitCornerRadius;
     BOOL _usesNativeGlass;
     BOOL _materialReady;
+    // rimEnabled 的 getter 与 setter 都手写了，编译器不会再合成实例变量，必须显式声明。
+    BOOL _rimEnabled;
 }
 
 @synthesize material = _material;
@@ -346,7 +353,6 @@ static void DKInjectBackdropFilters(UIView *view) {
 #pragma mark - 材质构建
 
 - (void)dk_rebuildMaterialAnimated:(BOOL)animated {
-    BOOL native = DKGlassNativeAvailable();
     UIColor *tint = (_material == DKGlassMaterialClear) ? DKGlassClearTint(_polarity) : nil;
 
     UIVisualEffect *effect = DKMakeNativeGlass(_material, tint, _pressFeedbackEnabled);

@@ -3,6 +3,8 @@
 //
 
 #import "DKFloatingTabBar.h"
+
+#import <math.h>
 #import "DKGlassTuning.h"
 
 static const CGFloat kDKTabItemWidth   = 44.0;
