@@ -153,7 +153,6 @@ bar.frame = CGRectMake(0, window.bounds.size.height - size.height - 34, size.wid
 - **未经真机验证。** 代码写完了，没编译过，更没有上机。第一次构建大概率需要修几个编译错误。
 - **边缘折射不可实现。** 见上文，这是物理限制不是工程量问题。
 - **动效会比 iOS 26 露馅。** 静态观感接近，滚动和切页时缺少材质流动。
-- **`control` 里的 `YOUR_GITHUB_NAME` 需要替换。**
 
 ## 许可
 
