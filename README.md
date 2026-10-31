@@ -90,6 +90,46 @@ make package THEOS_PACKAGE_SCHEME=rootless
 
 ---
 
+## 巨魔（TrollStore）用户看这里
+
+**巨魔不是越狱。** 那里没有 MobileSubstrate，deb 里的 tweak 根本不会被加载——装了也不会显示任何东西。这是环境限制，不是 bug。
+
+本项目为此提供第二个产物：**`DKLiquidGlass-TrollFools-dylib`**，一个不含任何 substrate 依赖的纯 dylib（`library.mk` 编译，`Sources/Preview` 被排除在外，因为那里的 `%hook` 会引入 substrate 运行时依赖）。
+
+### 用法
+
+1. 从 Actions 的 Artifacts 下载 `DKLiquidGlass-TrollFools-dylib`，解压得到 `DKLiquidGlassInject.dylib`
+2. 用 **TrollFools** 把它注入到抖音
+3. 重新打开抖音
+
+底栏会在 App 激活后 1 秒自动挂到窗口底部，**可以拖动**——因为它默认会和抖音自己的底栏叠在一起，需要挪开看。
+
+### 这一版能做什么、不能做什么
+
+| 能 | 不能 |
+|---|---|
+| 看到玻璃材质的真实观感 | 切页（拿不到抖音的 tab 控制器） |
+| 拖动、点击、触摸反馈 | 隐藏抖音原生底栏 |
+| 在 Console 里看能力与参数 | 读取抖音的选中态来同步 |
+
+原因：`Sources/Host/DKHostAttach.m` 只用公开 API（`connectedScenes` / `keyWindow` / 通知），**不 hook 任何抖音的类**。好处是对抖音版本完全免疫，抖音怎么改类名都不影响；代价是拿不到它内部的 tab 状态。
+
+要真正接管底栏，得按 `docs/design.md` §7 的思路去 hook `AWENormalModeTabBar`，那是一步大跨度的改动。
+
+### 排查
+
+注入后没反应，在 Console（macOS 上的「控制台」app，选中设备）里搜 `DKLiquidGlass`：
+
+```
+[DKLiquidGlass] 已挂载 · com.ss.iphone.ugc.Aweme · glass=fallback · rim=0.50/0.05 ...
+```
+
+- **看到这行但屏幕没变化** → 底栏挂上了但被抖音的原生底栏盖住，或者位置在屏幕外，试试拖动
+- **完全没这行** → dylib 没被加载。检查 TrollFools 是否注入成功；抖音有完整性校验，注入后可能被它检测并拒绝启动
+- **`glass=native(iOS26)`** → 只有在 iOS 26 设备上才会出现，你是 16.3.1，应该是 `fallback`
+
+---
+
 ## 调参
 
 **所有需要上机二分校准的数字都在 `DKGlassTuning.m`**。调材质观感不需要碰任何逻辑代码。
